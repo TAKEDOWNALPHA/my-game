@@ -1,1 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Galaxy: Horror Protocol</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+        * { touch-action: none; -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        
+        body {
+            margin: 0; padding: 0; 
+            background: radial-gradient(circle at center, #1a0033 0%, #05000a 100%);
+            overflow: hidden; font-family: 'Orbitron', sans-serif;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            height: 100vh; width: 100vw;
+        }
 
+        #bgCanvas { position: fixed; top:0; left:0; z-index:1; pointer-events:none; }
+
+        #game-box {
+            position: relative; width: 320px; height: 320px;
+            border: 2px solid rgba(0, 255, 255, 0.5);
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+            transition: width 0.7s cubic-bezier(0.19, 1, 0.22, 1), height 0.7s cubic-bezier(0.19, 1, 0.22, 1);
+            background: rgba(0, 0, 0, 0.8); z-index: 2;
+        }
+
+        canvas { display: block; }
+
+        /* UPDATED JUMPSCARE LAYER */
+        #scare-layer {
+            position: fixed; inset: 0; 
+            background: #000; /* Solid black */
+            display: none; 
+            z-index: 100; justify-content: center; align-items: center;
+        }
+
+        #scare-img {
+            width: auto; height: 80%;
+            max-width: 90vw; object-fit: contain;
+            filter: contrast(1.2) grayscale(0.8); /* Gritty look */
+            animation: violentShake 0.1s infinite; /* Violent shaking */
+        }
+
+        @keyframes violentShake {
+            0% { transform: translate(0,0) rotate(0deg); }
+            25% { transform: translate(-10px, 10px) rotate(-2deg); }
+            50% { transform: translate(10px, -5px) rotate(2deg); }
+            75% { transform: translate(-5px, -10px) rotate(-1deg); }
+            100% { transform: translate(0,0) rotate(0deg); }
+        }
+
+        /* UI Elements */
+        #ui {
+            position: absolute; top: -45px; width: 100%;
+            display: flex; justify-content: space-between; align-items: flex-end;
+            color: #0ff; text-shadow: 0 0 10px #0ff; font-size: 14px; padding: 0 5px;
+        }
+        .score-box {
+            background: rgba(0, 255, 255, 0.1); padding: 5px 12px;
+            border-radius: 5px; border: 1px solid rgba(0, 255, 255, 0.3);
+            font-weight: bold; color: #fff; text-shadow: 0 0 15px #0ff;
+        }
+
+        #overlay {
+            position: absolute; inset: 0; background: rgba(5, 0, 15, 0.95);
+            display: flex; flex-direction: column; justify-content: center;
+            align-items: center; z-index: 10; backdrop-filter: blur(15px);
+            padding: 20px; text-align: center;
+        }
+
+        #leaderboard {
+            width: 100%; max-width: 200px; margin: 15px 0;
+            border-top: 1px solid rgba(0, 255, 255, 0.2); padding-top: 10px;
+        }
+        .rank-row { display: flex; justify-content: space-between; font-size: 11px; margin: 4px 0; color: #bc13fe; }
+        .rank-row.top { color: #ffd700; font-weight: bold; }
+
+        .start-btn {
+            padding: 12px 30px; background: transparent; border: 2px solid #0ff;
+            color: #0ff; font-family: 'Orbitron'; cursor: pointer;
+            text-transform: uppercase; letter-spacing: 2px;
+        }
+
+        #controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 40px; }
+        .btn {
+            width: 65px; height: 65px; background: rgba(0, 255, 255, 0.1);
+            border: 2px solid #0ff; color: #0ff; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+        }
+        @media (min-width: 1024px) { #controls { display: none; } }
+    </style>
+</head>
+<body>
+
+    <canvas id="bgCanvas"></canvas>
+    
+    <div id="scare-layer">
+        <img id="scare-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAllBMVEUAAAD////7+/v39/fw8PDs7Ozk5OTc3NzU1NTPz8/Ly8u/v7+3t7epqamioqJ/f39zc3NlZWVQUFBHR0c/Pz8zMzMrKysjIyMcHBwYGBgQEBAODg4ICAgEBAT/AAAA/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP+BuH2fAAAAK3RSTlMA+v0WBB8GJRk0LSchPjAqRD0+Q1FhVlxfZGt/e4iHjZCnq7/Eytze5u73S4F6/gAAAjJJREFUeAGFl9uSgyAMRElQRFGuKvf//9sNENR2tU9Tz4MJSQ5JNmh9/F9F0T0Y/1Z58h784yA5R/51+P3j0h4Nf0lD2uH+Lg2pQxK+0hB3SP92DbFDCv5KQ9ghev4qDXGH5PzTGsKOUH3g2Yj3D5w/rSHuED9f1hA5ROV/qCFsCHu/pyFqiLq/pyFsiH/9QENsEPd/TUPUEP++oCFqCOv/kIawIdz9PQ2xQbyf1BA1xP0/0hA1RLx/oCFsiPj3FzREDbH+D2sIG+J7u6Ehaoh8/4SGoCH83U/QEDBk2A+X2z9t6F+6y+2Hj7b9GzQEDBkPOJd74CfoCByiP+D5dO78hIZgIRb3aJ/OnZ/QECxExQPu6dz5CQ3BQkzucfN87vyEhmAhBvdon26e+AkNwUJ0PPC+6eQnNAQLcfWA577u/ISGYCEG92if+6b7E/IE+mD56rFv+hP0BA6x6gGvG34CT+AQox683Q+X7k/QEzhE9cC13f/T0P0EPYFDdD3wdv/t1k/QEzjEqAeu3Q/8BA2BQ3Q98H7/7ddP0BM4xKgHLrfuT9ATOET1wP3uB/x06Qn0wR2qBz6u93c0BAuxuEdfN34CDZFCdD3wceN/WUMsEOEefd3wE2iIDKLqgeuG/xUNcUMM7tHXDT+Bhrgh+h543fBf0RA3RO9H/8uGkCF69+g/2ZA1xP0e/S8bwob43Y//mQ1RQ/z5wY80RAzh7g80hAzR//6Ghtgh4oD2D2sIHuJ50k32/1jD93815Qv+ACtq0aXqUwAAAABJRU5ErkJggg==" alt="Zombie Face">
+    </div>
+
+    <div id="game-box">
+        <div id="ui">
+            <div style="font-size: 10px; opacity: 0.8;">HIGH: <span id="high">0</span></div>
+            <div id="shield-ui" style="color:#ffd700; display:none; font-size: 10px;">🛡️ SHIELD</div>
+            <div class="score-box">SCORE: <span id="score">0</span></div>
+        </div>
+        
+        <div id="overlay">
+            <h1 id="menu-title" style="color: #fff; margin:0; font-size: 1.5rem;">NEON GALAXY</h1>
+            <div id="leaderboard">
+                <div style="font-size: 9px; letter-spacing: 2px; margin-bottom: 8px; color: #0ff;">TOP PILOTS</div>
+                <div id="leader-list"></div>
+            </div>
+            <button class="start-btn" onclick="bootGame()">Engage</button>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div id="controls">
+        <div class="btn up" style="grid-column: 2;" ontouchstart="handleInput('UP')">▲</div>
+        <div class="btn left" style="grid-column: 1;" ontouchstart="handleInput('LEFT')">◀</div>
+        <div class="btn down" style="grid-column: 2;" ontouchstart="handleInput('DOWN')">▼</div>
+        <div class="btn right" style="grid-column: 3;" ontouchstart="handleInput('RIGHT')">▶</div>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const bgCanvas = document.getElementById('bgCanvas');
+const box = document.getElementById('game-box');
+const scareLayer = document.getElementById('scare-layer');
+const ctx = canvas.getContext('2d');
+const bgCtx = bgCanvas.getContext('2d');
+const leaderList = document.getElementById('leader-list');
+
+let grid = 22; 
+let score, isRunning, dx, dy, nextDir, snake, food, cols, rows, hasShield;
+let stars = [], nebulae = [];
+let leaderboard = JSON.parse(localStorage.getItem('galaxyHall')) || [0, 0, 0, 0, 0];
+let scareTriggered = false;
+
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+// NEW HORROR SCREAM SYNTH
+function playScream() {
+    const now = audioCtx.currentTime;
+    // Create cluster of dissonant oscillators
+    [400, 450, 600, 800, 1100].forEach(freq => {
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq * 3, now + 0.3); // Rapid pitch shift up
+        
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+        
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(now + 0.8);
+    });
+
+    // Add noise for grit
+    const bufferSize = audioCtx.sampleRate * 0.5;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    const noiseGain = audioCtx.createGain();
+    noiseGain.gain.setValueAtTime(0.8, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+    noise.connect(noiseGain); noiseGain.connect(audioCtx.destination);
+    noise.start();
+}
+
+function triggerScare() {
+    scareTriggered = true;
+    scareLayer.style.display = 'flex';
+    playScream();
+    // Violent vibration
+    if (navigator.vibrate) navigator.vibrate([500, 100, 500, 100, 500]);
+    
+    setTimeout(() => {
+        scareLayer.style.display = 'none';
+    }, 1200); // Lasts 1.2 seconds
+}
+
+// --- Galaxy Background ---
+function initGalaxy() {
+    bgCanvas.width = window.innerWidth; bgCanvas.height = window.innerHeight;
+    stars = Array.from({length: 150}, () => ({ x: Math.random() * bgCanvas.width, y: Math.random() * bgCanvas.height, s: Math.random() * 2, o: Math.random() }));
+    nebulae = Array.from({length: 4}, () => ({ x: Math.random() * bgCanvas.width, y: Math.random() * bgCanvas.height, r: 250 + Math.random() * 300, c: Math.random() > 0.5 ? 'rgba(100, 0, 150, 0.12)' : 'rgba(0, 60, 120, 0.12)' }));
+}
+function drawGalaxy() {
+    bgCtx.fillStyle = '#05000a'; bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+    nebulae.forEach(n => { let g = bgCtx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r); g.addColorStop(0, n.c); g.addColorStop(1, 'transparent'); bgCtx.fillStyle = g; bgCtx.fillRect(0,0, bgCanvas.width, bgCanvas.height); });
+    bgCtx.fillStyle = "#fff"; stars.forEach(s => { bgCtx.globalAlpha = 0.2 + Math.abs(Math.sin(Date.now() * 0.001 + s.x)); bgCtx.fillRect(s.x, s.y, s.s, s.s); });
+    requestAnimationFrame(drawGalaxy);
+}
+
+// --- Leaderboard & UI ---
+function updateLeaderboardUI() {
+    leaderList.innerHTML = '';
+    leaderboard.forEach((val, i) => {
+        const row = document.createElement('div');
+        row.className = `rank-row ${i === 0 ? 'top' : ''}`;
+        row.innerHTML = `<span>PILOT #${i+1}</span> <span>${val}</span>`;
+        leaderList.appendChild(row);
+    });
+    document.getElementById('high').innerText = leaderboard[0];
+}
+function saveScore(s) {
+    leaderboard.push(s); leaderboard.sort((a, b) => b - a); leaderboard = leaderboard.slice(0, 5);
+    localStorage.setItem('galaxyHall', JSON.stringify(leaderboard));
+    updateLeaderboardUI();
+}
+function updateBoxSize() {
+    let newW = Math.min(window.innerWidth * 0.95, 320 + (score * 10));
+    let newH = Math.min(window.innerHeight * 0.65, 320 + (score * 10));
+    box.style.width = `${newW}px`; box.style.height = `${newH}px`;
+    canvas.width = newW; canvas.height = newH;
+    cols = Math.floor(newW / grid); rows = Math.floor(newH / grid);
+}
+
+// --- Game Logic ---
+function init() {
+    score = 0; hasShield = false; scareTriggered = false;
+    updateBoxSize();
+    const midX = Math.floor(cols / 2); const midY = Math.floor(rows / 2);
+    snake = [{x: midX, y: midY}, {x: midX-1, y: midY}, {x: midX-2, y: midY}];
+    dx = 1; dy = 0; nextDir = {x: 1, y: 0};
+    document.getElementById('score').innerText = score;
+}
+function bootGame() {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    document.getElementById('overlay').style.display = 'none';
+    init(); spawnFood(); isRunning = true; requestAnimationFrame(gameLoop);
+}
+let lastTime = 0;
+function gameLoop(time) {
+    if (!isRunning) return;
+    if (time - lastTime > 100) { update(); lastTime = time; }
+    draw(); requestAnimationFrame(gameLoop);
+}
+function update() {
+    dx = nextDir.x; dy = nextDir.y;
+    const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+    if (head.x < 0 || head.x >= cols || head.y < 0 || head.y >= rows || snake.some(p => p.x === head.x && p.y === head.y)) {
+        if (hasShield) { hasShield = false; document.getElementById('shield-ui').style.display = 'none'; return; }
+        gameOver(); return;
+    }
+    snake.unshift(head);
+    if (head.x === food.x && head.y === food.y) {
+        score += 10; document.getElementById('score').innerText = score;
+        if (score === 150 && !scareTriggered) triggerScare(); // Trigger at 150
+        updateBoxSize(); spawnFood();
+        if (score % 60 === 0) { hasShield = true; document.getElementById('shield-ui').style.display = 'inline'; }
+    } else { snake.pop(); }
+}
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.shadowBlur = 15; ctx.shadowColor = '#0ff'; ctx.fillStyle = '#0ff'; ctx.beginPath(); ctx.arc(food.x*grid+grid/2, food.y*grid+grid/2, grid/3, 0, Math.PI*2); ctx.fill();
+    snake.forEach((p, i) => {
+        ctx.shadowBlur = 15; ctx.shadowColor = i === 0 ? '#fff' : '#bc13fe'; ctx.fillStyle = i === 0 ? '#fff' : '#bc13fe';
+        ctx.beginPath(); ctx.roundRect(p.x*grid+2, p.y*grid+2, grid-4, grid-4, 5); ctx.fill();
+        if (i === 0 && hasShield) { ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x*grid+grid/2, p.y*grid+grid/2, grid*0.8, 0, Math.PI*2); ctx.stroke(); }
+    });
+}
+function spawnFood() { food = { x: Math.floor(Math.random()*(cols-1)), y: Math.floor(Math.random()*(rows-1)) }; }
+function gameOver() {
+    isRunning = false; saveScore(score); document.getElementById('menu-title').innerText = "SYSTEM CRASH"; document.getElementById('overlay').style.display = 'flex';
+}
+function handleInput(dir) {
+    if (dir === 'UP' && dy !== 1) nextDir = {x: 0, y: -1}; if (dir === 'DOWN' && dy !== -1) nextDir = {x: 0, y: 1};
+    if (dir === 'LEFT' && dx !== 1) nextDir = {x: -1, y: 0}; if (dir === 'RIGHT' && dx !== -1) nextDir = {x: 1, y: 0};
+}
+window.addEventListener('keydown', e => { if (e.key === 'ArrowUp') handleInput('UP'); if (e.key === 'ArrowDown') handleInput('DOWN'); if (e.key === 'ArrowLeft') handleInput('LEFT'); if (e.key === 'ArrowRight') handleInput('RIGHT'); });
+initGalaxy(); drawGalaxy(); updateLeaderboardUI();
+</script>
+</body>
+</html>
